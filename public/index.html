@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Insecam Roulette</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body style="background-image: url('https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fgetwallpapers.com%2Fwallpaper%2Ffull%2F0%2F8%2Fb%2F8611.jpg&f=1&nofb=1&ipt=ba9c8a778a3b8022d3077f9180eeb028a848a476cfe39b3d8c591a53bfaa5380&ipo=images');">
+  <div class="title-container">
+    <h1 class="title">Insecam Roulette</h1>
+  </div>
+  <div class="container">
+    <div>
+      <img class="video" id="mjpeg-stream" alt="MJPEG Stream" src="">
+    </div>
+  <div class="chat">
+    <div id="chat"></div>
+    <input id="message" type="text" placeholder="Message if you'd like..." onkeypress="handleKeyPress(event)" />
+    <button id="send" onclick="sendMessage()">Send</button>
+  </div>
+
+  </div>
+
+  <div class="container">
+    
+    <div class="about">
+      <p><strong>whats going on?</strong></p>
+      <p>This project recieves the IP address of each person to connect to this page, translated it to a location (on the state level) and then displays
+        a surveillance camera feed from the same state as the last connected user. Feeds are open cameras availble for viewing on insecam.org. Currently 
+        only feeds in the U.S. are supported but feel free to play around with a VPN to surf different feeds and invite your friends from around the country to
+        join in. 
+      </p>
+    </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+    const socket = io.connect();
+    let mjpegLinks; 
+    let nyMjpegIndex = 0;
+
+// array for nyc streams
+const nyMjpegLinks = [
+  "http://108.30.103.58:8082/mjpg/video.mjpg?timestamp=1697759730864",
+  "http://72.43.190.171:81/mjpg/video.mjpg?timestamp=1697762496119",
+  "http://166.130.18.45:1024/mjpg/video.mjpg?camera=1&timestamp=1697777080898",
+  "http://108.41.24.124/mjpg/video.mjpg?timestamp=1697772126310"
+];
+
+    // send chats 2 all users
+    function sendMessage() {
+      const message = $('#message').val();
+      socket.emit('chat', message);
+      $('#message').val('');
+    }
+
+    // load mjpeg json
+    fetch('mjpegLinks.json')
+      .then(response => response.json())
+      .then(data => {
+        mjpegLinks = data;
+
+        socket.on('message', (message) => {
+          $('#chat').append($('<p>').text(message));
+        });
+
+        socket.on('chat', (message) => {
+          $('#chat').append($('<p>').text(message));
+        });
+
+        socket.on('updateMJPEGStream', (city) => {
+  if (mjpegLinks[city]) {
+    if (city === "New York, US") {
+      // cycle thru ny streams
+      nyMjpegIndex = (nyMjpegIndex + 1) % nyMjpegLinks.length;
+      $('#mjpeg-stream').attr('src', nyMjpegLinks[nyMjpegIndex]);
+    } else {
+      // cycle thru all state streams
+      $('#mjpeg-stream').attr('src', mjpegLinks[city]);
+    }
+  }
+});
+
+socket.on('syncMJPEGIndex', (index) => {
+  nyMjpegIndex = index;
+  $('#mjpeg-stream').attr('src', nyMjpegLinks[nyMjpegIndex]);
+});
+
+
+
+      })
+      .catch(error => console.error('Error loading mjpegLinks.json:', error));
+
+    function handleKeyPress(event) {
+      if (event.key === 'Enter') {
+        sendMessage();
+      }
+    }
+  </script>
+</body>
+</html>
